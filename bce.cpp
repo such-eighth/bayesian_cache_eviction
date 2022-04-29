@@ -6,9 +6,10 @@ using namespace std;
 
 class BCE
 {
-    int alph_size; // size of the alphabet
-    int capacity;  // max size of the cache
-    int used;      // current number of elements in the cache
+    int alph_size;   // size of the alphabet
+    int capacity;    // max size of the cache
+    int used;        // current number of elements in the cache
+    string last_key; // the last key to be accessed
     unordered_map<string, unordered_map<string, float>> M;
     unordered_map<string, string> cache;
 
@@ -18,12 +19,21 @@ public:
         this->alph_size = alph_size;
         this->capacity = capacity;
         this->used = 0;
+        this->last_key = "";
     }
 
     bool get(string key, string *val)
     {
+        if (cache.count(key) > 0)
+        {
+            *val = cache[key];
 
-        return true;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     bool remove(string key)
