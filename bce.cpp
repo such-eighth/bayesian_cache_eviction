@@ -48,6 +48,19 @@ public:
         cache.erase(key);
         return true;
     }
+    void print_m()
+    {
+        cout << "\n M \n";
+        for (auto i : M)
+        {
+            cout << "last key: " << i.first << "\n";
+            for (auto j : i.second)
+            {
+                cout << "key: " << j.first << " value: " << j.second << " , ";
+            }
+            cout << "\n";
+        }
+    }
 
     bool set(string key, string *val)
     {
@@ -92,6 +105,16 @@ public:
 
 int main()
 {
-    BCE *a = new BCE(26, 5, 0.5);
+    BCE *a = new BCE(26, 3, 0.5);
+    string *value = new string("value");
+    a->set("a", value);
+    a->print_m();
+    a->set("b", value);
+    a->print_m();
+    a->set("c", value);
+    a->print_m();
+    a->set("d", value);
+    a->print_m();
+
     return 0;
 }
