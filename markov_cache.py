@@ -9,7 +9,7 @@ class markov_cache:
     self.lookahead = lookahead # number of elements to look ahead for markov computation
     self.array_length = capacity//min_element_size + 1 # array lengths to start with
     self.key_counts = np.zeros(self.array_length) # 1d array for counts of each key in cache
-    self.count_matrix = np.zeros((self.array_length, self.array_length)) #2d array of counts for transition matrix
+    self.count_matrix = np.zeros((self.array_length, self.array_length)) # 2d array of counts for transition matrix
     self.available_indices = deque() # queue of available indices, sorry there is prob a better way to do this
     for i in range(self.array_length):
       self.available_indices.append(i)
@@ -55,17 +55,61 @@ class markov_cache:
 
     else:
       return False
-  # NEED TO DO
-  # Needs to maybe resize arrays because number of elements is not constant
-  def check_and_resize_arrays():
-    return True
+
   
   # Associate the given value with the given key, evicting other keys and values if necessary
   # Return True if this succeeds, false otherwise
   def set(self, key, val):
     elem_size = len(key) + len(val)
+    if(elem_size > self.capacity):
+      return False
+    if key in self.cache:
+      needed_size = max(0,len(val) - len(self.cache[key]))
+    else:
+      needed_size = elem_size
 
-    # NEED TO FIX FOR DIFFERENT VALUE SIZES
+    if(self.available_capacity < needed_size):
+      # If last key has been removed, use LFU
+      if(self.last_key_index == -1):
+        while(self.available_capacity < needed_size):
+          min_key_index = self.key_counts.argmin()
+          min_key = self.index_to_key(min_key_index)
+          self.remove(min_key)
+      
+      # compute Markov chain probabilities
+      else:
+        # adjust key counts for the fact that the "next access" for the last access isn't accounted for in count_matrix
+        temp_key_counts = self.key_counts
+        temp_key_counts[self.last_key_index] -= 1
+
+        # compute key frequencies instead of just counts
+        key_freqs = temp_key_counts/np.sum(temp_key_counts)
+
+        # compute Markov transition matrix
+        transition_matrix = np.multiply(key_freqs, self.count_matrix)
+
+        # Store sum of all steps in markov chain
+        total_probs = np.zeros((self.capacity,self.capacity))
+
+        # Matrix after some number of multiplications of our Markov matrix
+        temp_matrix = transition_matrix
+        for i in range(self.lookahead):
+          temp_matrix = temp_matrix @ transition_matrix
+          total_probs = total_probs + temp_matrix
+        
+        # We only want to remove keys at indices that are used
+        avail_indices_np = np.zeros(self.array_length) + 1
+        avail_indices_np = avail_indices_np[np.array(list(self.available_indices))]
+        while(self.available_capacity < needed_size):
+          # set total probs to very high values at the available indices so we don't try to remove those
+          max_val = total_probs.max()
+          total_probs = total_probs + avail_indices_np * max_val
+
+          min_key_index = np.argmin(total_probs[self.last_key_index])
+          min_key = self.index_to_key[min_key_index]
+          avail_indices_np[min_key_index] = 1
+          self.remove(min_key)
+
     if key in self.cache:
       key_index = self.key_to_index[key]
       # change associated value in the cache
@@ -76,38 +120,8 @@ class markov_cache:
         self.count_matrix[self.last_key_index][key_index] += 1
       self.last_key_index = key_index
       return True
+
     else:
-      while(elem_size > self.available_capacity):
-        # If the last key has been removed or there is no last key, use LFU
-        if(self.last_key_index == -1):
-          min_key_index = self.key_counts.argmin()
-          min_key = self.index_to_key(min_key_index)
-          self.remove(min_key)
-        else:
-          # adjust key counts for the fact that the "next access" for the last access isn't accounted for in count_matrix
-          temp_key_counts = self.key_counts
-          temp_key_counts[self.last_key_index] -= 1
-
-          # compute key frequencies instead of just counts
-          key_freqs = temp_key_counts/np.sum(temp_key_counts)
-
-          # compute Markov transition matrix
-          transition_matrix = np.multiply(key_freqs, self.count_matrix)
-
-          # Store sum of all steps in markov chain
-          total_probs = np.zeros((self.capacity,self.capacity))
-
-          # Matrix after some number of multiplications of our Markov matrix
-          temp_matrix = transition_matrix
-          for i in range(self.lookahead):
-            temp_matrix = temp_matrix @ transition_matrix
-            total_probs = total_probs + temp_matrix
-          # Find which key to remove
-          # NEED TO CHANGE TO ONLY DO THE MARKOV STUFF ONCE AND THEN JUST REMOVE SEVERAL BASED ON IT
-          min_key_index = np.argmin(total_probs[self.last_key_index])
-          min_key = self.index_to_key[min_key_index]
-          self.remove(min_key)
-      
       # add key to cache and update dicts and maps
       key_index = self.available_indices.popleft()
       self.available_capacity -= elem_size
