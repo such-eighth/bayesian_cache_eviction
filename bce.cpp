@@ -20,7 +20,7 @@ public:
         this->alph_size = alph_size;
         this->capacity = capacity;
         this->gamma = gamma;
-        this->last_key = "";
+        this->last_key;
     }
 
     bool get(string key, string *val)
